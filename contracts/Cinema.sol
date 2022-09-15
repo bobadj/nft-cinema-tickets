@@ -41,7 +41,8 @@ contract Cinema is Ownable {
     }
 
     event Received(address, uint);
-    event HallCreate(uint256 hallID, uint256 totalSeats);
+    event HallCreated(uint256 hallID, string name, uint256 totalSeats);
+    event MovieCreated(uint256 movieID, uint256 hallID, string title);
     event TicketBooked(address buyer, uint256 fligtID);
     event TicketCanceled(address buyer, uint256 flightID);
 
@@ -51,7 +52,6 @@ contract Cinema is Ownable {
     constructor(address _cinemaTokenAddress) {
         cinemaTokenAddress = _cinemaTokenAddress;
     }
-
 
     receive() external payable {
         emit Received(msg.sender, msg.value);
@@ -88,7 +88,17 @@ contract Cinema is Ownable {
     * @notice available for contract owner only
     * no returns
     */
-    function addNewHall(string memory _name, uint256 _totalSeats) onlyOwner public {}
+    function addNewHall(string memory _name, uint256 _totalSeats) onlyOwner public {
+        require(bytes(_name).length > 0, "Hall name is required.");
+        require(_totalSeats > 0, "New hall must have at least one seats available.");
+
+        uint256 currentID = Counters.current(hallIDCounter);
+        // by default availableSeats = totalSeats
+        halls[currentID] = Hall(_name, _totalSeats, _totalSeats);
+
+        Counters.increment(hallIDCounter);
+        emit HallCreated(currentID, _name, _totalSeats);
+    }
 
     /**
     * Creates a new movie
@@ -101,7 +111,16 @@ contract Cinema is Ownable {
     * @notice available for contract owner only
     * no returns
     */
-    function addNewMovie(uint256 _hallID, string memory _title, uint256 _startTime, uint256 _ticketPrice) onlyBuyer requireValidHall(_hallID) onlyOwner public {}
+    function addNewMovie(uint256 _hallID, string memory _title, uint256 _startTime, uint256 _ticketPrice) onlyBuyer requireValidHall(_hallID) onlyOwner public {
+        require(bytes(_title).length > 0, "Movie must have a title.");
+        require(_startTime > block.timestamp, "Movie projection must be in a future.");
+
+        uint256 currentID = Counters.current(movieIDCounter);
+        movies[currentID] = Movie(_hallID, _title, _startTime, _ticketPrice);
+
+        Counters.increment(movieIDCounter);
+        emit MovieCreated(currentID, _hallID, _title);
+    }
 
     /**
     * Books a ticket for a movie

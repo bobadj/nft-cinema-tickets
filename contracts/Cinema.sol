@@ -98,9 +98,10 @@ contract Cinema is Ownable {
     * @param _startTime - time on projection as timestamp
     * @param _ticketPrice - price per ticket
     *
+    * @notice available for contract owner only
     * no returns
     */
-    function addNewMovie(uint256 _hallID, string memory _title, uint256 _startTime, uint256 _ticketPrice) requireValidHall(_hallID) onlyOwner public {}
+    function addNewMovie(uint256 _hallID, string memory _title, uint256 _startTime, uint256 _ticketPrice) onlyBuyer requireValidHall(_hallID) onlyOwner public {}
 
     /**
     * Books a ticket for a movie

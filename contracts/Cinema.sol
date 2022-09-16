@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "./CinemaTicket.sol";
 
 contract Cinema is Ownable {
     using SafeMath for uint;
@@ -43,8 +44,8 @@ contract Cinema is Ownable {
     event Received(address, uint);
     event HallCreated(uint256 hallID, string name, uint256 totalSeats);
     event MovieCreated(uint256 movieID, uint256 hallID, string title);
-    event TicketBooked(address buyer, uint256 fligtID);
-    event TicketCanceled(address buyer, uint256 flightID);
+    event TicketBooked(address buyer, uint256 movieID);
+    event TicketCanceled(address buyer, uint256 movieID);
 
     /**
     * Sets CinemaToken address on deploy
@@ -108,6 +109,8 @@ contract Cinema is Ownable {
     * @param _startTime - time on projection as timestamp
     * @param _ticketPrice - price per ticket
     *
+    * @toDo - determinate if hall is busy at the moment of projections
+    *
     * @notice available for contract owner only
     * no returns
     */
@@ -132,7 +135,24 @@ contract Cinema is Ownable {
     *
     * no returns
     */
-    function bookTicket(uint256 _movieID, uint256 _seats) requireValidMovie(_movieID) public payable {}
+    function bookTicket(uint256 _movieID, uint256 _seats) requireValidMovie(_movieID) public payable {
+        Movie memory movie = movies[_movieID];
+        Hall memory hall = halls[movie.hallID];
+        require(movie.startTime > block.timestamp, "Movie has already started.");
+        require(hall.availableSeats < _seats, "There is no enough seats available for this movie.");
+        require(movie.ticketPrice * _seats != msg.value, "Amount applied does not match to cost.");
+
+        address payable contractAddress = payable(address(this));
+        (bool sent,) = contractAddress.call{value : msg.value}("");
+        require(sent, "Failed to send Ether.");
+
+        CinemaTicket cinemaToken = CinemaTicket(cinemaTokenAddress);
+        cinemaToken.mint(_movieID);
+
+        hall.availableSeats = hall.availableSeats - 1;
+        halls[movie.hallID] = hall;
+        emit TicketBooked(msg.sender, _movieID);
+    }
 
     /**
     * Cancels a ticket for movie
@@ -143,5 +163,29 @@ contract Cinema is Ownable {
     *
     * no returns
     */
-    function cancelTicket(uint256 _movieID) requireValidMovie(_movieID) public payable {}
+    function cancelTicket(uint256 _movieID) requireValidMovie(_movieID) public {
+        Movie memory movie = movies[_movieID];
+        require(movie.startTime > block.timestamp, "Movie has already started.");
+        CinemaTicket cinemaToken = CinemaTicket(cinemaTokenAddress);
+
+        uint256 ticketsPrice = uint256(1 * 1 ether);
+        // 80% refund by default
+        uint256 refundAmount = ticketsPrice.div(5).mul(4);
+        // less then 2h 50% refund
+        if (movie.startTime - 7200 <= block.timestamp)
+            refundAmount = refundAmount.div(2);
+        // less then 1h 20% refund
+        if (movie.startTime - 3600 <= block.timestamp)
+            refundAmount = refundAmount.div(5);
+
+        (bool sent,) = payable(msg.sender).call{value : refundAmount}("");
+        require(sent, "Failed to send Ether.");
+        cinemaToken.burn(0);
+
+        Hall memory hall = halls[movie.hallID];
+        hall.availableSeats = hall.availableSeats + 1;
+        halls[movie.hallID] = hall;
+
+        emit TicketCanceled(msg.sender, _movieID);
+    }
 }

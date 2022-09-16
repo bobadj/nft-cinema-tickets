@@ -26,7 +26,6 @@ abstract contract CinemaTicket is ERC721URIStorage {
     }
 
     event TicketIssued(address buyer, uint256 movieID);
-    event TicketBurned(address buyer, uint256 movieID);
 
     /*
     * Starts token counting from 1

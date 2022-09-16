@@ -6,20 +6,17 @@ import { BigNumber } from "ethers";
 describe("Cinema", function () {
     async function deployContract() {
         const [owner, otherAccount] = await ethers.getSigners();
-        // first deploy CinemaTicket contract
-        const CinemaTicket = await ethers.getContractFactory("CinemaTicket");
-        const cinemaTicket = await CinemaTicket.deploy();
-        // deploy Cinema contract with CinemaTicket address applied
+        // deploy Cinema contract
         const Cinema = await ethers.getContractFactory("Cinema");
-        const cinema = await Cinema.deploy(cinemaTicket.address);
+        const cinema = await Cinema.deploy();
 
         // Contracts are deployed using the first signer/account by default
-        return { cinemaTicket, cinema, owner, otherAccount };
+        return { cinema, owner, otherAccount };
     }
 
     describe("Testing contract", function () {
         it("Should create a new hall", async function() {
-            const { cinema } = await loadFixture(deployContract);
+            const { cinema, otherAccount } = await loadFixture(deployContract);
 
             const hallName = "Cineplexx Beograd";
             const hallSeats = 20;
@@ -28,13 +25,6 @@ describe("Cinema", function () {
             const hall = await cinema.getHall(0);
 
             describe("Test hall details", function () {
-                it("Name should be correct", async function() {
-                    expect(hall.name).to.be.eq(hallName);
-                });
-                it("Check seats", async function() {
-                    expect(+hall.totalSeats.toNumber()).to.be.eq(hallSeats);
-                    expect(+hall.availableSeats.toNumber()).to.be.eq(hallSeats);
-                });
                 it("Should create new movie", async function() {
                     const movieTitle = "Awesome movie.";
                     const movieStartTime = Number((new Date().getTime() / 1000) + 86400).toFixed(0);
@@ -61,6 +51,20 @@ describe("Cinema", function () {
                         it("Cinema contract should have less funds", async function() {
                             const cinemaFunds = await cinema.provider.getBalance(cinema.address);
                             expect(cinemaFunds.toNumber()).to.be.eq(+movieTicketPrice);
+                        })
+                    });
+                    describe("Book/cancel tickets for a movie with different signer", function () {
+                        it("Should book tickets for a movie", async function() {
+                            await cinema.connect(otherAccount).bookTicket(
+                                BigNumber.from(0),
+                                BigNumber.from(2),
+                                {
+                                    value: movieTicketPrice * 2
+                                }
+                            )
+                        })
+                        it("Should cancel tickets", async function() {
+                            await cinema.connect(otherAccount).cancelTicket(0);
                         })
                     });
                 });

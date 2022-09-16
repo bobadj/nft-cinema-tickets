@@ -6,14 +6,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./CinemaTicket.sol";
 
-contract Cinema is Ownable {
+contract Cinema is Ownable, CinemaTicket {
     using SafeMath for uint;
     using Counters for Counters.Counter;
 
     struct Hall {
         string name;
         uint256 totalSeats;
-        uint256 availableSeats;
     }
 
     struct Movie {
@@ -21,12 +20,11 @@ contract Cinema is Ownable {
         string title;
         uint256 startTime;
         uint256 ticketPrice;
+        uint256 availableTickets;
     }
 
     Counters.Counter private movieIDCounter;
     Counters.Counter private hallIDCounter;
-
-    address private cinemaTokenAddress;
 
     mapping(uint256 => Hall) private halls;
     mapping(uint256 => Movie) private movies;
@@ -36,7 +34,7 @@ contract Cinema is Ownable {
         _;
     }
 
-    modifier requireValidMovie(uint256 _movieID) {
+    modifier requireValidMovie(uint256 _movieID) override {
         require(_movieID < Counters.current(movieIDCounter), "Movie does not exits.");
         _;
     }
@@ -46,13 +44,6 @@ contract Cinema is Ownable {
     event MovieCreated(uint256 movieID, uint256 hallID, string title);
     event TicketBooked(address buyer, uint256 movieID);
     event TicketCanceled(address buyer, uint256 movieID);
-
-    /**
-    * Sets CinemaToken address on deploy
-    */
-    constructor(address _cinemaTokenAddress) {
-        cinemaTokenAddress = _cinemaTokenAddress;
-    }
 
     receive() external payable {
         emit Received(msg.sender, msg.value);
@@ -94,8 +85,7 @@ contract Cinema is Ownable {
         require(_totalSeats > 0, "New hall must have at least one seats available.");
 
         uint256 currentID = Counters.current(hallIDCounter);
-        // by default availableSeats = totalSeats
-        halls[currentID] = Hall(_name, _totalSeats, _totalSeats);
+        halls[currentID] = Hall(_name, _totalSeats);
 
         Counters.increment(hallIDCounter);
         emit HallCreated(currentID, _name, _totalSeats);
@@ -118,8 +108,10 @@ contract Cinema is Ownable {
         require(bytes(_title).length > 0, "Movie must have a title.");
         require(_startTime > block.timestamp, "Movie projection must be in a future.");
 
+        Hall memory hall = halls[_hallID];
+
         uint256 currentID = Counters.current(movieIDCounter);
-        movies[currentID] = Movie(_hallID, _title, _startTime, _ticketPrice);
+        movies[currentID] = Movie(_hallID, _title, _startTime, _ticketPrice, hall.totalSeats);
 
         Counters.increment(movieIDCounter);
         emit MovieCreated(currentID, _hallID, _title);
@@ -137,20 +129,18 @@ contract Cinema is Ownable {
     */
     function bookTicket(uint256 _movieID, uint256 _seats) requireValidMovie(_movieID) public payable {
         Movie memory movie = movies[_movieID];
-        Hall memory hall = halls[movie.hallID];
         require(movie.startTime > block.timestamp, "Movie has already started.");
-        require(hall.availableSeats > _seats, "There is no enough seats available for this movie.");
-//        require(movie.ticketPrice * _seats != msg.value, "Amount applied does not match to cost.");
+        require(movie.availableTickets > _seats, "There is no enough seats available for this movie.");
+        require(msg.value >= movie.ticketPrice * _seats, "Amount applied does not match to cost.");
 
         address payable contractAddress = payable(address(this));
         (bool sent,) = contractAddress.call{value : movie.ticketPrice * _seats}("");
         require(sent, "Failed to send Ether.");
 
-        CinemaTicket cinemaToken = CinemaTicket(cinemaTokenAddress);
-        cinemaToken.mint(_movieID);
+        mint(_movieID, movie.title);
 
-        hall.availableSeats = hall.availableSeats - 1;
-        halls[movie.hallID] = hall;
+        movie.availableTickets = movie.availableTickets - _seats;
+        movies[_movieID] = movie;
         emit TicketBooked(msg.sender, _movieID);
     }
 
@@ -166,7 +156,10 @@ contract Cinema is Ownable {
     function cancelTicket(uint256 _movieID) requireValidMovie(_movieID) public payable {
         Movie memory movie = movies[_movieID];
         require(movie.startTime > block.timestamp, "Movie has already started.");
-        CinemaTicket cinemaToken = CinemaTicket(cinemaTokenAddress);
+        uint256 ticketID = getTokenIdFromMovieAndAddress(_movieID, msg.sender);
+        address buyer = ownerOf(ticketID);
+
+        require(buyer != address(0), "You dont have tickets for this flight.");
 
         // 100% refund by default
         uint256 refundAmount = movie.ticketPrice;
@@ -177,13 +170,13 @@ contract Cinema is Ownable {
         if (movie.startTime - 3600 <= block.timestamp)
             refundAmount = movie.ticketPrice.div(5);
 
-        (bool sent,) = payable(msg.sender).call{value : refundAmount}("");
+        (bool sent,) = payable(buyer).call{value : refundAmount}("");
         require(sent, "Failed to send Ether.");
-        cinemaToken.burn(0);
+        _burn(ticketID);
 
-        Hall memory hall = halls[movie.hallID];
-        hall.availableSeats = hall.availableSeats + 1;
-        halls[movie.hallID] = hall;
+        // should be increased by number of seats that ticket has
+        movie.availableTickets = movie.availableTickets + 1;
+        movies[_movieID] = movie;
 
         emit TicketCanceled(msg.sender, _movieID);
     }

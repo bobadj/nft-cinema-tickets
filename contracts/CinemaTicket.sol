@@ -25,8 +25,6 @@ abstract contract CinemaTicket is ERC721URIStorage {
         _;
     }
 
-    event TicketIssued(address buyer, uint256 movieID);
-
     /*
     * Starts token counting from 1
     */
@@ -122,7 +120,6 @@ abstract contract CinemaTicket is ERC721URIStorage {
         movieToTokenOwnerMap[_movieID][msg.sender] = currentTokenID;
 
         tokenIDCounter.increment();
-        emit TicketIssued(msg.sender, _movieID);
 
         return currentTokenID;
     }

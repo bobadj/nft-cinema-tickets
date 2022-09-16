@@ -99,7 +99,7 @@ contract Cinema is Ownable, CinemaTicket {
     * @param _startTime - time on projection as timestamp
     * @param _ticketPrice - price per ticket
     *
-    * toDo - determinate if hall is busy at the moment of projections
+    * toDo - determinate if hall is busy at the moment of projection
     *
     * @notice available for contract owner only
     * no returns

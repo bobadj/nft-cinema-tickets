@@ -109,12 +109,12 @@ contract Cinema is Ownable {
     * @param _startTime - time on projection as timestamp
     * @param _ticketPrice - price per ticket
     *
-    * @toDo - determinate if hall is busy at the moment of projections
+    * toDo - determinate if hall is busy at the moment of projections
     *
     * @notice available for contract owner only
     * no returns
     */
-    function addNewMovie(uint256 _hallID, string memory _title, uint256 _startTime, uint256 _ticketPrice) onlyBuyer requireValidHall(_hallID) onlyOwner public {
+    function addNewMovie(uint256 _hallID, string memory _title, uint256 _startTime, uint256 _ticketPrice) onlyOwner requireValidHall(_hallID) onlyOwner public {
         require(bytes(_title).length > 0, "Movie must have a title.");
         require(_startTime > block.timestamp, "Movie projection must be in a future.");
 
@@ -139,11 +139,11 @@ contract Cinema is Ownable {
         Movie memory movie = movies[_movieID];
         Hall memory hall = halls[movie.hallID];
         require(movie.startTime > block.timestamp, "Movie has already started.");
-        require(hall.availableSeats < _seats, "There is no enough seats available for this movie.");
-        require(movie.ticketPrice * _seats != msg.value, "Amount applied does not match to cost.");
+        require(hall.availableSeats > _seats, "There is no enough seats available for this movie.");
+//        require(movie.ticketPrice * _seats != msg.value, "Amount applied does not match to cost.");
 
         address payable contractAddress = payable(address(this));
-        (bool sent,) = contractAddress.call{value : msg.value}("");
+        (bool sent,) = contractAddress.call{value : movie.ticketPrice * _seats}("");
         require(sent, "Failed to send Ether.");
 
         CinemaTicket cinemaToken = CinemaTicket(cinemaTokenAddress);
@@ -163,20 +163,19 @@ contract Cinema is Ownable {
     *
     * no returns
     */
-    function cancelTicket(uint256 _movieID) requireValidMovie(_movieID) public {
+    function cancelTicket(uint256 _movieID) requireValidMovie(_movieID) public payable {
         Movie memory movie = movies[_movieID];
         require(movie.startTime > block.timestamp, "Movie has already started.");
         CinemaTicket cinemaToken = CinemaTicket(cinemaTokenAddress);
 
-        uint256 ticketsPrice = uint256(1 * 1 ether);
-        // 80% refund by default
-        uint256 refundAmount = ticketsPrice.div(5).mul(4);
+        // 100% refund by default
+        uint256 refundAmount = movie.ticketPrice;
         // less then 2h 50% refund
         if (movie.startTime - 7200 <= block.timestamp)
-            refundAmount = refundAmount.div(2);
+            refundAmount = movie.ticketPrice.div(2);
         // less then 1h 20% refund
         if (movie.startTime - 3600 <= block.timestamp)
-            refundAmount = refundAmount.div(5);
+            refundAmount = movie.ticketPrice.div(5);
 
         (bool sent,) = payable(msg.sender).call{value : refundAmount}("");
         require(sent, "Failed to send Ether.");

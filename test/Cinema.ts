@@ -48,9 +48,9 @@ describe("Cinema", function () {
                         it("Should cancel tickets", async function() {
                             await cinema.cancelTicket(0);
                         })
-                        it("Cinema contract should have less funds", async function() {
+                        it("Cinema contract refund tickets", async function() {
                             const cinemaFunds = await cinema.provider.getBalance(cinema.address);
-                            expect(cinemaFunds.toNumber()).to.be.eq(+movieTicketPrice);
+                            expect(cinemaFunds.toNumber()).to.be.eq(0);
                         })
                     });
                     describe("Book/cancel tickets for a movie with different signer", function () {

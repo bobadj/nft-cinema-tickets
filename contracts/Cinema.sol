@@ -137,7 +137,8 @@ contract Cinema is Ownable, CinemaTicket {
         (bool sent,) = contractAddress.call{value : movie.ticketPrice * _seats}("");
         require(sent, "Failed to send Ether.");
 
-        mint(_movieID, movie.title);
+        uint256 ticketID = mint(_movieID, movie.title);
+        tokensMetadata[ticketID] = TicketMetadata(msg.sender, _seats, movie.ticketPrice * _seats, _movieID);
 
         movie.availableTickets = movie.availableTickets - _seats;
         movies[_movieID] = movie;
@@ -157,12 +158,13 @@ contract Cinema is Ownable, CinemaTicket {
         Movie memory movie = movies[_movieID];
         require(movie.startTime > block.timestamp, "Movie has already started.");
         uint256 ticketID = getTokenIdFromMovieAndAddress(_movieID, msg.sender);
+        TicketMetadata memory ticketMeta = getTokenMetadata(ticketID);
         address buyer = ownerOf(ticketID);
 
         require(buyer != address(0), "You dont have tickets for this flight.");
 
         // 100% refund by default
-        uint256 refundAmount = movie.ticketPrice;
+        uint256 refundAmount = ticketMeta.totalCost;
         // less then 2h 50% refund
         if (movie.startTime - 7200 <= block.timestamp)
             refundAmount = movie.ticketPrice.div(2);
@@ -174,8 +176,7 @@ contract Cinema is Ownable, CinemaTicket {
         require(sent, "Failed to send Ether.");
         _burn(ticketID);
 
-        // should be increased by number of seats that ticket has
-        movie.availableTickets = movie.availableTickets + 1;
+        movie.availableTickets = movie.availableTickets + ticketMeta.totalSeats;
         movies[_movieID] = movie;
 
         emit TicketCanceled(msg.sender, _movieID);

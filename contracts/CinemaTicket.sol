@@ -11,7 +11,14 @@ abstract contract CinemaTicket is ERC721URIStorage {
     using Counters for Counters.Counter;
     Counters.Counter private tokenIDCounter;
 
-    mapping(uint256 => uint256) private tokenToMovieMap;
+    struct TicketMetadata {
+        address buyer;
+        uint256 totalSeats;
+        uint256 totalCost;
+        uint256 movieID;
+    }
+
+    mapping(uint256 => TicketMetadata) internal tokensMetadata;
     mapping(uint256 => mapping(address => uint256)) private movieToTokenOwnerMap;
 
     modifier requireValidMovie(uint256 _movieID) virtual {
@@ -29,6 +36,18 @@ abstract contract CinemaTicket is ERC721URIStorage {
     }
 
     /**
+    * Gets token metadata
+    *
+    * @param _tokenID - ID of particular token
+    *
+    * @return TicketMetadata struct with the specified _tokenID
+    */
+    function getTokenMetadata(uint256 _tokenID) internal view returns(TicketMetadata memory) {
+        _requireMinted(_tokenID);
+        return tokensMetadata[_tokenID];
+    }
+
+    /**
     * Gets tokenID for movie, based on address
     *
     * @param _movieID - ID of a movie
@@ -36,7 +55,7 @@ abstract contract CinemaTicket is ERC721URIStorage {
     *
     * @return ID of a token
     */
-    function getTokenIdFromMovieAndAddress(uint256 _movieID, address _address) requireValidMovie(_movieID) public view returns(uint256) {
+    function getTokenIdFromMovieAndAddress(uint256 _movieID, address _address) requireValidMovie(_movieID) internal view returns(uint256) {
         require(_address != address(0), "Address is not valid.");
         require(movieToTokenOwnerMap[_movieID][_address] > 0, "There is no token associated with movie.");
         require(_exists(movieToTokenOwnerMap[_movieID][_address]), "Token is burned or never minted.");
@@ -51,7 +70,7 @@ abstract contract CinemaTicket is ERC721URIStorage {
     *
     * @return boolean
     */
-    function hasTokenAssociatedWithMovie(uint256 _movieID, address _address) public view returns(bool) {
+    function hasTokenAssociatedWithMovie(uint256 _movieID, address _address) internal view returns(bool) {
         return movieToTokenOwnerMap[_movieID][_address] > 0 && _exists(movieToTokenOwnerMap[_movieID][_address]);
     }
 
@@ -101,7 +120,6 @@ abstract contract CinemaTicket is ERC721URIStorage {
         _safeMint(msg.sender, currentTokenID);
         _setApprovalForAll(msg.sender, address(this), true);
         _setTokenURI(currentTokenID, formatTokenURI(_movieTitle));
-        tokenToMovieMap[currentTokenID] = _movieID;
         movieToTokenOwnerMap[_movieID][msg.sender] = currentTokenID;
 
         tokenIDCounter.increment();
@@ -116,8 +134,10 @@ abstract contract CinemaTicket is ERC721URIStorage {
     * todo - after token transfer, will contract still be a operator?
     */
     function _afterTokenTransfer(address from, address to, uint256 tokenId) override internal virtual {
-        uint256 movieID = tokenToMovieMap[tokenId];
-        movieToTokenOwnerMap[movieID][to] = tokenId;
-        delete movieToTokenOwnerMap[movieID][from];
+        TicketMetadata memory ticketMeta = tokensMetadata[tokenId];
+        movieToTokenOwnerMap[ticketMeta.movieID][to] = tokenId;
+        ticketMeta.buyer = to;
+        tokensMetadata[tokenId] = ticketMeta;
+        delete movieToTokenOwnerMap[ticketMeta.movieID][from];
     }
 }

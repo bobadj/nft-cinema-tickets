@@ -3,11 +3,9 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./CinemaTicket.sol";
 
 contract Cinema is Ownable, CinemaTicket {
-    using SafeMath for uint;
     using Counters for Counters.Counter;
 
     struct Hall {
@@ -167,10 +165,10 @@ contract Cinema is Ownable, CinemaTicket {
         uint256 refundAmount = ticketMeta.totalCost;
         // less then 2h 50% refund
         if (movie.startTime - 7200 <= block.timestamp)
-            refundAmount = movie.ticketPrice.div(2);
+            refundAmount = movie.ticketPrice / 2;
         // less then 1h 20% refund
         if (movie.startTime - 3600 <= block.timestamp)
-            refundAmount = movie.ticketPrice.div(5);
+            refundAmount = movie.ticketPrice / 5;
 
         (bool sent,) = payable(buyer).call{value : refundAmount}("");
         require(sent, "Failed to send Ether.");

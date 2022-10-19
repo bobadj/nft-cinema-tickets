@@ -178,10 +178,10 @@ contract Cinema is Ownable {
         uint256 refundAmount = ticketMeta.totalCost;
         // less then 2h 50% refund
         if (movie.startTime - 7200 <= block.timestamp)
-            refundAmount = movie.ticketPrice.div(2);
+            refundAmount = movie.ticketPrice / 2;
         // less then 1h 20% refund
         if (movie.startTime - 3600 <= block.timestamp)
-            refundAmount = movie.ticketPrice.div(5);
+            refundAmount = movie.ticketPrice / 5;
 
 //        (bool sent,) = payable(buyer).call{value : refundAmount}("");
 //        require(sent, "Failed to send Ether.");

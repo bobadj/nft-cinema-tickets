@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import { Base64 } from "@openzeppelin/contracts/utils/Base64.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "./libraries/Block.sol";
 
-abstract contract CinemaTicket is ERC721URIStorage {
+contract CinemaTicket is ERC721URIStorage, AccessControl {
     using Counters for Counters.Counter;
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
     Counters.Counter private tokenIDCounter;
 
     struct TicketMetadata {
@@ -21,15 +23,14 @@ abstract contract CinemaTicket is ERC721URIStorage {
     mapping(uint256 => TicketMetadata) internal tokensMetadata;
     mapping(uint256 => mapping(address => uint256)) private movieToTokenOwnerMap;
 
-    modifier requireValidMovie(uint256 _movieID) virtual {
-        _;
-    }
-
     /*
     * Starts token counting from 1
+    * Grants minter role for admin
     */
     constructor() ERC721 ("Cinema Ticket", "CIT") {
         tokenIDCounter.increment();
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(MINTER_ROLE, msg.sender);
     }
 
     /**
@@ -39,7 +40,7 @@ abstract contract CinemaTicket is ERC721URIStorage {
     *
     * @return TicketMetadata struct with the specified _tokenID
     */
-    function getTokenMetadata(uint256 _tokenID) internal view returns(TicketMetadata memory) {
+    function getTokenMetadata(uint256 _tokenID) public view returns(TicketMetadata memory) {
         _requireMinted(_tokenID);
         return tokensMetadata[_tokenID];
     }
@@ -52,7 +53,7 @@ abstract contract CinemaTicket is ERC721URIStorage {
     *
     * @return ID of a token
     */
-    function getTokenIdFromMovieAndAddress(uint256 _movieID, address _address) requireValidMovie(_movieID) internal view returns(uint256) {
+    function getTokenIdFromMovieAndAddress(uint256 _movieID, address _address) public view returns(uint256) {
         require(_address != address(0), "Address is not valid.");
         require(movieToTokenOwnerMap[_movieID][_address] > 0, "There is no token associated with movie.");
         require(_exists(movieToTokenOwnerMap[_movieID][_address]), "Token is burned or never minted.");
@@ -88,7 +89,7 @@ abstract contract CinemaTicket is ERC721URIStorage {
                         abi.encodePacked(
                             '{',
                             '"name": "Cinema Ticket",',
-                            '"image": "https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=https://testnets.opensea.io/assets/', Block.chainName(block.chainid) ,'/', Strings.toHexString(uint160(address(this)), 20) ,'/', Strings.toString(tokenID) ,'&choe=UTF-8",',
+                            '"image": "https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=https://testnets.opensea.io/assets/', Block.chainName(block.chainid) ,'/', abi.encodePacked(address(this)) ,'/', abi.encodePacked(tokenID) ,'&choe=UTF-8",',
                             '"attributes": [{ "trait_type": "Movie title", "value": "', _movieTitle ,'" }]',
                             '}'
                         )
@@ -101,39 +102,48 @@ abstract contract CinemaTicket is ERC721URIStorage {
     /**
     * Mints new token for msg.sender
     *
+    * @param _buyer - buyer address
     * @param _movieID - ID of movie ticket should be associated with
+    * @param _seats - seats booked
+    * @param _totalPrice - price payed
+    * @param _movieTitle - title of a movie
     *
     * @notice contract should be an operator for minted token in order to burn it
     * after token is used or canceled
     * @notice should not be able to mint multiple tokens for the same movie,
     * force addresses to cancel the previous tickets and buy new ones
     *
-    * @return ID of a token
     */
-    function mint(uint256 _movieID, string memory _movieTitle) requireValidMovie(_movieID) internal returns(uint256) {
-        require(!hasTokenAssociatedWithMovie(_movieID, msg.sender), "You already have ticket for this this movie.");
+    function mint(address _buyer, uint256 _movieID, uint256 _seats, uint256 _totalPrice, string memory _movieTitle) onlyRole(MINTER_ROLE) public {
+        require(_buyer != address(0), "Invalid buyer");
+        require(!hasTokenAssociatedWithMovie(_movieID, _buyer), "You already have ticket for this this movie.");
         uint256 currentTokenID = tokenIDCounter.current();
 
-        _safeMint(msg.sender, currentTokenID);
-        _setApprovalForAll(msg.sender, address(this), true);
+        _safeMint(_buyer, currentTokenID);
+        _setApprovalForAll(_buyer, address(this), true);
         _setTokenURI(currentTokenID, formatTokenURI(_movieTitle));
-        movieToTokenOwnerMap[_movieID][msg.sender] = currentTokenID;
+        movieToTokenOwnerMap[_movieID][_buyer] = currentTokenID;
+        tokensMetadata[currentTokenID] = TicketMetadata(_buyer, _seats, _totalPrice, _movieID);
 
         tokenIDCounter.increment();
-
-        return currentTokenID;
     }
 
-    /**
-    * Updates mapping
-    *
-    * todo - after token transfer, will contract still be a operator?
+    function burn(TicketMetadata memory _ticketMeta, uint256 _tokenId) onlyRole(MINTER_ROLE) public {
+        require(_exists(_tokenId), "Token does not exists");
+        address ticketHolder = ownerOf(_tokenId);
+        require(_ticketMeta.buyer == ticketHolder, "Ticket holder and ticket buyer does not match");
+
+        _burn(_tokenId);
+
+        delete tokensMetadata[_tokenId];
+        delete movieToTokenOwnerMap[_ticketMeta.movieID][_ticketMeta.buyer];
+    }
+
+    /*
+    * Solidity requires
     */
-    function _afterTokenTransfer(address from, address to, uint256 tokenId) override internal virtual {
-        TicketMetadata memory ticketMeta = tokensMetadata[tokenId];
-        movieToTokenOwnerMap[ticketMeta.movieID][to] = tokenId;
-        ticketMeta.buyer = to;
-        tokensMetadata[tokenId] = ticketMeta;
-        delete movieToTokenOwnerMap[ticketMeta.movieID][from];
+    function supportsInterface(bytes4 interfaceId) public view override(ERC721, AccessControl) returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 }

@@ -6,9 +6,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./CinemaTicket.sol";
 
-contract Cinema is Ownable, CinemaTicket {
+contract Cinema is Ownable {
     using SafeMath for uint;
     using Counters for Counters.Counter;
+
+    address public immutable tokenAddress;
 
     struct Hall {
         string name;
@@ -34,7 +36,7 @@ contract Cinema is Ownable, CinemaTicket {
         _;
     }
 
-    modifier requireValidMovie(uint256 _movieID) override {
+    modifier requireValidMovie(uint256 _movieID) {
         require(_movieID < Counters.current(movieIDCounter), "Movie does not exits.");
         _;
     }
@@ -44,6 +46,16 @@ contract Cinema is Ownable, CinemaTicket {
     event MovieCreated(uint256 movieID, uint256 hallID, string title);
     event TicketBooked(address buyer, uint256 movieID);
     event TicketCanceled(address buyer, uint256 movieID);
+
+    /*
+    * Save ERC721 token address
+    *
+    * @param _tokenAddress - ERC721 token address
+    *
+    */
+    constructor(address _tokenAddress) {
+        tokenAddress = _tokenAddress;
+    }
 
     receive() external payable {
         emit Received(msg.sender, msg.value);
@@ -137,8 +149,7 @@ contract Cinema is Ownable, CinemaTicket {
         (bool sent,) = contractAddress.call{value : movie.ticketPrice * _seats}("");
         require(sent, "Failed to send Ether.");
 
-        uint256 ticketID = mint(_movieID, movie.title);
-        tokensMetadata[ticketID] = TicketMetadata(msg.sender, _seats, movie.ticketPrice * _seats, _movieID);
+        CinemaTicket(tokenAddress).mint(msg.sender, _movieID, _seats, movie.ticketPrice * _seats, movie.title);
 
         movie.availableTickets = movie.availableTickets - _seats;
         movies[_movieID] = movie;
@@ -157,11 +168,11 @@ contract Cinema is Ownable, CinemaTicket {
     function cancelTicket(uint256 _movieID) requireValidMovie(_movieID) public payable {
         Movie memory movie = movies[_movieID];
         require(movie.startTime > block.timestamp, "Movie has already started.");
-        uint256 ticketID = getTokenIdFromMovieAndAddress(_movieID, msg.sender);
-        TicketMetadata memory ticketMeta = getTokenMetadata(ticketID);
-        address buyer = ownerOf(ticketID);
+        uint256 ticketID = CinemaTicket(tokenAddress).getTokenIdFromMovieAndAddress(_movieID, msg.sender);
+        CinemaTicket.TicketMetadata memory ticketMeta = CinemaTicket(tokenAddress).getTokenMetadata(ticketID);
+//        address buyer = ownerOf(ticketID);
 
-        require(buyer != address(0), "You dont have tickets for this flight.");
+//        require(buyer != address(0), "You dont have tickets for this flight.");
 
         // 100% refund by default
         uint256 refundAmount = ticketMeta.totalCost;
@@ -172,13 +183,13 @@ contract Cinema is Ownable, CinemaTicket {
         if (movie.startTime - 3600 <= block.timestamp)
             refundAmount = movie.ticketPrice.div(5);
 
-        (bool sent,) = payable(buyer).call{value : refundAmount}("");
-        require(sent, "Failed to send Ether.");
-        _burn(ticketID);
-
-        movie.availableTickets = movie.availableTickets + ticketMeta.totalSeats;
-        movies[_movieID] = movie;
-
-        emit TicketCanceled(msg.sender, _movieID);
+//        (bool sent,) = payable(buyer).call{value : refundAmount}("");
+//        require(sent, "Failed to send Ether.");
+        CinemaTicket(tokenAddress).burn(ticketMeta, ticketID);
+//
+//        movie.availableTickets = movie.availableTickets + ticketMeta.totalSeats;
+//        movies[_movieID] = movie;
+//
+//        emit TicketCanceled(msg.sender, _movieID);
     }
 }

@@ -1,7 +1,7 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import {BigNumber, utils} from "ethers";
+import { BigNumber, utils } from "ethers";
 
 describe("Cinema", function () {
     async function deployContract() {
@@ -58,25 +58,25 @@ describe("Cinema", function () {
                         it("Should cancel tickets", async function() {
                             await cinema.cancelTicket(0);
                         })
-                        // it("Cinema contract refund tickets", async function() {
-                        //     const cinemaFunds = await cinema.provider.getBalance(cinema.address);
-                        //     expect(cinemaFunds.toNumber()).to.be.eq(0);
-                        // })
+                        it("Cinema contract refund tickets", async function() {
+                            const cinemaFunds = await cinema.provider.getBalance(cinema.address);
+                            expect(cinemaFunds.toNumber()).to.be.eq(0);
+                        })
                     });
-            //         describe("Book/cancel tickets for a movie with different signer", function () {
-            //             it("Should book tickets for a movie", async function() {
-            //                 await cinema.connect(otherAccount).bookTicket(
-            //                     BigNumber.from(0),
-            //                     BigNumber.from(2),
-            //                     {
-            //                         value: movieTicketPrice * 2
-            //                     }
-            //                 )
-            //             })
-            //             it("Should cancel tickets", async function() {
-            //                 await cinema.connect(otherAccount).cancelTicket(0);
-            //             })
-            //         });
+                    describe("Book/cancel tickets for a movie with different signer", function () {
+                        it("Should book tickets for a movie", async function() {
+                            await cinema.connect(otherAccount).bookTicket(
+                                BigNumber.from(0),
+                                BigNumber.from(2),
+                                {
+                                    value: movieTicketPrice * 2
+                                }
+                            )
+                        })
+                        it("Should cancel tickets", async function() {
+                            await cinema.connect(otherAccount).cancelTicket(0);
+                        })
+                    });
                 });
             });
         });

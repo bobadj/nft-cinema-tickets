@@ -128,6 +128,14 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
         tokenIDCounter.increment();
     }
 
+    /**
+    * Burns token and deletes tokens meta and owner mapping
+    *
+    * @param _ticketMeta - meta details for ticket
+    * @param _tokenId - token ID
+    *
+    * @notice _ticketMeta and tokenOwner must be same
+    */
     function burn(TicketMetadata memory _ticketMeta, uint256 _tokenId) onlyRole(MINTER_ROLE) public {
         require(_exists(_tokenId), "Token does not exists");
         address ticketHolder = ownerOf(_tokenId);
@@ -137,6 +145,25 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
 
         delete tokensMetadata[_tokenId];
         delete movieToTokenOwnerMap[_ticketMeta.movieID][_ticketMeta.buyer];
+    }
+
+    /**
+    * Track token transfers and make sure to properly update TicketMeta and owner mapping
+    *
+    * @notice address from and TicketMeta.buyer should be same
+    * @notice will be executed only if token already minted
+    */
+    function _afterTokenTransfer(address from, address to, uint256 tokenId) internal override {
+        if (_exists(tokenId)) {
+            TicketMetadata memory ticketMeta = getTokenMetadata(tokenId);
+            require(from == ticketMeta.buyer, "Not valid owner.");
+            // delete previous mapping
+            delete tokensMetadata[tokenId];
+            delete movieToTokenOwnerMap[ticketMeta.movieID][from];
+            // update
+            movieToTokenOwnerMap[ticketMeta.movieID][to] = tokenId;
+            tokensMetadata[tokenId] = TicketMetadata(to, ticketMeta.totalSeats, ticketMeta.totalCost, ticketMeta.movieID);
+        }
     }
 
     /*

@@ -170,9 +170,9 @@ contract Cinema is Ownable {
         require(movie.startTime > block.timestamp, "Movie has already started.");
         uint256 ticketID = CinemaTicket(tokenAddress).getTokenIdFromMovieAndAddress(_movieID, msg.sender);
         CinemaTicket.TicketMetadata memory ticketMeta = CinemaTicket(tokenAddress).getTokenMetadata(ticketID);
-//        address buyer = ownerOf(ticketID);
+        address buyer = ticketMeta.buyer;
 
-//        require(buyer != address(0), "You dont have tickets for this flight.");
+        require(buyer != address(0), "You dont have tickets for this flight.");
 
         // 100% refund by default
         uint256 refundAmount = ticketMeta.totalCost;
@@ -183,13 +183,13 @@ contract Cinema is Ownable {
         if (movie.startTime - 3600 <= block.timestamp)
             refundAmount = movie.ticketPrice / 5;
 
-//        (bool sent,) = payable(buyer).call{value : refundAmount}("");
-//        require(sent, "Failed to send Ether.");
+        (bool sent,) = payable(buyer).call{value : refundAmount}("");
+        require(sent, "Failed to send Ether.");
         CinemaTicket(tokenAddress).burn(ticketMeta, ticketID);
-//
-//        movie.availableTickets = movie.availableTickets + ticketMeta.totalSeats;
-//        movies[_movieID] = movie;
-//
-//        emit TicketCanceled(msg.sender, _movieID);
+
+        movie.availableTickets = movie.availableTickets + ticketMeta.totalSeats;
+        movies[_movieID] = movie;
+
+        emit TicketCanceled(msg.sender, _movieID);
     }
 }

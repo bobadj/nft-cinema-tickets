@@ -172,7 +172,7 @@ contract Cinema is Ownable {
         CinemaTicket.TicketMetadata memory ticketMeta = CinemaTicket(tokenAddress).getTokenMetadata(ticketID);
         address buyer = ticketMeta.buyer;
 
-        require(buyer != address(0), "You dont have tickets for this flight.");
+        require(buyer != address(0), "You dont have tickets for this movie.");
 
         // 100% refund by default
         uint256 refundAmount = ticketMeta.totalCost;

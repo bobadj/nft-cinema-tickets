@@ -90,7 +90,7 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
                             '{',
                             '"name": "Cinema Ticket",',
                             '"image": "https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=https://testnets.opensea.io/assets/', Block.chainName(block.chainid) ,'/', abi.encodePacked(address(this)) ,'/', abi.encodePacked(tokenID) ,'&choe=UTF-8",',
-                            '"attributes": [{ "trait_type": "Movie title", "value": "', _movieTitle ,'" }]',
+                            '"attributes": [{ "trait_type": "Movie", "value": "', _movieTitle ,'" }]',
                             '}'
                         )
                     )

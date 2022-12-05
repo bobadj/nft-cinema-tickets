@@ -24,7 +24,7 @@ describe("Cinema", function () {
         return { cinemaTicket, cinema, owner, otherAccount };
     }
 
-    describe("Testing contract", function () {
+    describe("Testing Cinema contract", function () {
         it("Should create a new hall", async function() {
             const { cinema, otherAccount } = await loadFixture(deployContract);
 
@@ -81,5 +81,4 @@ describe("Cinema", function () {
             });
         });
     });
-
 });

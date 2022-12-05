@@ -77,7 +77,7 @@ contract Cinema is Ownable {
     *
     * @param _hallID - ID of hall to be retrieved
     *
-    * @return Hall struct with the specified _hallID
+    * @return Hall struct
     */
     function getHall(uint256 _hallID) requireValidHall(_hallID) public view returns(Hall memory) {
         return halls[_hallID];

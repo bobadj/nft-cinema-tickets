@@ -24,61 +24,59 @@ describe("Cinema", function () {
         return { cinemaTicket, cinema, owner, otherAccount };
     }
 
-    describe("Testing Cinema contract", function () {
-        it("Should create a new hall", async function() {
-            const { cinema, otherAccount } = await loadFixture(deployContract);
+    it("Should create a new hall", async function() {
+        const { cinema, owner } = await loadFixture(deployContract);
 
-            const hallName = "Cineplexx Beograd";
-            const hallSeats = 20;
+        const hallName = "Cineplexx Beograd";
+        const hallSeats = 20;
 
-            await cinema.addNewHall(hallName, BigNumber.from(hallSeats));
-            // const hall = await cinema.getHall(0);
+        await expect(cinema.addNewHall(hallName, BigNumber.from(hallSeats)))
+            .to.emit(cinema, "HallCreated")
+            .withArgs(0, hallName, BigNumber.from(hallSeats));
 
-            describe("Test hall details", function () {
-                it("Should create new movie", async function() {
-                    const movieTitle = "Awesome movie.";
-                    const movieStartTime = Number((new Date().getTime() / 1000) + 86400).toFixed(0);
-                    const movieTicketPrice = (0.002 * 1e18).toFixed(0);
-                    await cinema.addNewMovie(BigNumber.from(0), movieTitle, BigNumber.from(movieStartTime), BigNumber.from(movieTicketPrice));
+        const createdHall = await cinema.getHall(0);
+        expect(createdHall.name).to.be.eq(hallName);
+        expect(createdHall.totalSeats).to.be.eq(BigNumber.from(hallSeats));
 
-                    describe("Book/cancel tickets for a movie", function () {
-                        it("Should book tickets for a movie", async function() {
-                            await cinema.bookTicket(
-                                BigNumber.from(0),
-                                BigNumber.from(2),
-                                {
-                                    value: movieTicketPrice * 2
-                                }
-                            )
-                        })
-                        it("Cinema contract should have funds", async function() {
-                            const cinemaFunds = await cinema.provider.getBalance(cinema.address);
-                            expect(cinemaFunds.toNumber()).to.be.eq(movieTicketPrice*2);
-                        })
-                        it("Should cancel tickets", async function() {
-                            await cinema.cancelTicket(0);
-                        })
-                        it("Cinema contract refund tickets", async function() {
-                            const cinemaFunds = await cinema.provider.getBalance(cinema.address);
-                            expect(cinemaFunds.toNumber()).to.be.eq(0);
-                        })
+        describe("Testing hall details", function () {
+            it("Should create a new movie", async function() {
+                const movieTitle = "Awesome movie.";
+                const hallID = 0;
+                const movieStartTime = Number((new Date().getTime() / 1000) + 86400).toFixed(0);
+                const movieTicketPrice = (0.002 * 1e18).toFixed(0);
+
+                await expect(cinema.addNewMovie(hallID, movieTitle, BigNumber.from(movieStartTime), BigNumber.from(movieTicketPrice)))
+                    .to.emit(cinema, "MovieCreated")
+                    .withArgs(0, hallID, movieTitle);
+
+                const createdMovie = await cinema.getMovie(0);
+
+                expect(createdMovie.hallID).to.be.eq(BigNumber.from(hallID));
+                expect(createdMovie.title).to.be.eq(movieTitle);
+                expect(createdMovie.startTime).to.be.eq(BigNumber.from(movieStartTime));
+                expect(createdMovie.ticketPrice).to.be.eq(BigNumber.from(movieTicketPrice));
+
+                describe("Book/cancel tickets for a movie", function () {
+                    it("Should book tickets for a movie", async function() {
+                        await expect(cinema.bookTicket(BigNumber.from(0), BigNumber.from(2), { value: movieTicketPrice*2 }))
+                            .to.emit(cinema, "TicketBooked")
+                            .withArgs(owner.address, BigNumber.from(0));
                     });
-                    describe("Book/cancel tickets for a movie with different signer", function () {
-                        it("Should book tickets for a movie", async function() {
-                            await cinema.connect(otherAccount).bookTicket(
-                                BigNumber.from(0),
-                                BigNumber.from(2),
-                                {
-                                    value: movieTicketPrice * 2
-                                }
-                            )
-                        })
-                        it("Should cancel tickets", async function() {
-                            await cinema.connect(otherAccount).cancelTicket(0);
-                        })
+                    it("Cinema contract should have funds", async function() {
+                        const cinemaFunds = await cinema.provider.getBalance(cinema.address);
+                        expect(cinemaFunds.toNumber()).to.be.eq(movieTicketPrice*2);
+                    });
+                    it("Should cancel tickets", async function() {
+                        await expect(cinema.cancelTicket(0))
+                            .to.emit(cinema, "TicketCanceled")
+                            .withArgs(owner.address, BigNumber.from(0));
+                    });
+                    it("Cinema contract refund tickets", async function() {
+                        const cinemaFunds = await cinema.provider.getBalance(cinema.address);
+                        expect(cinemaFunds.toNumber()).to.be.eq(0);
                     });
                 });
             });
-        });
+        })
     });
 });

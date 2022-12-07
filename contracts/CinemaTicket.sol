@@ -116,9 +116,6 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
         require(!hasTokenAssociatedWithMovie(_movieID, _buyer), "You already have ticket for this this movie.");
         uint256 currentTokenID = tokenIDCounter.current();
 
-
-        console.log(formatTokenURI());
-
         _safeMint(_buyer, currentTokenID);
         _setApprovalForAll(_buyer, address(this), true);
         _setTokenURI(currentTokenID, formatTokenURI());

@@ -10,7 +10,7 @@ library Block {
     * @return chain name (string)
     */
     function chainName(uint256 _chainID) internal pure returns (string memory) {
-        string memory name = "undefined";
+        string memory name = "hardhat";
         if (_chainID == 5)
             name = "goerli";
         return name;

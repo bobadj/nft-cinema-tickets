@@ -149,7 +149,7 @@ contract Cinema is Ownable {
         (bool sent,) = contractAddress.call{value : movie.ticketPrice * _seats}("");
         require(sent, "Failed to send Ether.");
 
-        CinemaTicket(tokenAddress).mint(msg.sender, _movieID, _seats, movie.ticketPrice * _seats, movie.title);
+        CinemaTicket(tokenAddress).mint(msg.sender, _movieID, _seats, movie.ticketPrice * _seats);
 
         movie.availableTickets = movie.availableTickets - _seats;
         movies[_movieID] = movie;

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.4;
 
+import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import { Base64 } from "@openzeppelin/contracts/utils/Base64.sol";
@@ -75,11 +76,9 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
     /**
     * Builds token uri
     *
-    * @param _movieTitle - Title of a movie
-    *
     * @return JSON encoded string
     */
-    function formatTokenURI(string memory _movieTitle) private view returns (string memory) {
+    function formatTokenURI() private view returns (string memory) {
         uint256 tokenID = tokenIDCounter.current();
         return string(
             abi.encodePacked(
@@ -89,8 +88,7 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
                         abi.encodePacked(
                             '{',
                             '"name": "Cinema Ticket",',
-                            '"image": "https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=https://testnets.opensea.io/assets/', Block.chainName(block.chainid) ,'/', abi.encodePacked(address(this)) ,'/', abi.encodePacked(tokenID) ,'&choe=UTF-8",',
-                            '"attributes": [{ "trait_type": "Movie", "value": "', _movieTitle ,'" }]',
+                            '"image": "https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=https://testnets.opensea.io/assets/', Block.chainName(block.chainid), '/', Strings.toHexString(uint256(uint160(msg.sender)), 20), '/', Strings.toString(tokenID), '&choe=UTF-8"'
                             '}'
                         )
                     )
@@ -106,7 +104,6 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
     * @param _movieID - ID of movie ticket should be associated with
     * @param _seats - seats booked
     * @param _totalPrice - price payed
-    * @param _movieTitle - title of a movie
     *
     * @notice contract should be an operator for minted token in order to burn it
     * after token is used or canceled
@@ -114,14 +111,17 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
     * force addresses to cancel the previous tickets and buy new ones
     *
     */
-    function mint(address _buyer, uint256 _movieID, uint256 _seats, uint256 _totalPrice, string memory _movieTitle) onlyRole(MINTER_ROLE) public {
+    function mint(address _buyer, uint256 _movieID, uint256 _seats, uint256 _totalPrice) onlyRole(MINTER_ROLE) public {
         require(_buyer != address(0), "Invalid buyer");
         require(!hasTokenAssociatedWithMovie(_movieID, _buyer), "You already have ticket for this this movie.");
         uint256 currentTokenID = tokenIDCounter.current();
 
+
+        console.log(formatTokenURI());
+
         _safeMint(_buyer, currentTokenID);
         _setApprovalForAll(_buyer, address(this), true);
-        _setTokenURI(currentTokenID, formatTokenURI(_movieTitle));
+        _setTokenURI(currentTokenID, formatTokenURI());
         movieToTokenOwnerMap[_movieID][_buyer] = currentTokenID;
         tokensMetadata[currentTokenID] = TicketMetadata(_buyer, _seats, _totalPrice, _movieID);
 

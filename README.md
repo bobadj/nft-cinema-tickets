@@ -12,6 +12,6 @@ yarn install
 ```
 * Test with gas reporter:
 ```
-cross-env-shell GAS_REPORTER=true yarn hardhat test
+yarn cross-env GAS_REPORTER=true hardhat test
 ```
-_Note: to see gas prices `COINMARKETCAP_KEY` is required, could use the `.env` file or `cross-end-shell` to set it_
+_Note: to see gas prices `COINMARKETCAP_KEY` is required, could use the `.env` file or `cross-end` to set it_

@@ -6,7 +6,7 @@ describe("Cinema", function () {
     let cinemaTicket, cinema, owner, otherAccount;
     const movieTitle = "Awesome movie.",
           hallID = 0,
-          movieStartTime = Number((new Date().getTime() / 1000) + 86400).toFixed(0),
+          movieStartTime = Number((new Date().getTime() / 1000) + 3600).toFixed(0),
           movieTicketPrice = (0.002 * 1e18).toFixed(0);
 
     before("Deploy the contracts first", async function() {
@@ -34,7 +34,7 @@ describe("Cinema", function () {
             .to.emit(cinema, "HallCreated")
             .withArgs(0, hallName, BigNumber.from(hallSeats));
 
-        const createdHall = await cinema.getHall(0);
+        const createdHall = await cinema.halls(0);
         expect(createdHall.name).to.be.eq(hallName);
         expect(createdHall.totalSeats).to.be.eq(BigNumber.from(hallSeats));
     });
@@ -44,7 +44,7 @@ describe("Cinema", function () {
             .to.emit(cinema, "MovieCreated")
             .withArgs(0, hallID, movieTitle);
 
-        const createdMovie = await cinema.getMovie(0);
+        const createdMovie = await cinema.movies(0);
 
         expect(createdMovie.hallID).to.be.eq(BigNumber.from(hallID));
         expect(createdMovie.title).to.be.eq(movieTitle);
@@ -66,11 +66,11 @@ describe("Cinema", function () {
     it("Should cancel tickets", async function() {
         await expect(cinema.cancelTicket(0))
             .to.emit(cinema, "TicketCanceled")
-            .withArgs(owner.address, BigNumber.from(0));
+            .withArgs(owner.address, 0);
     });
 
-    it("Cinema contract refund tickets", async function() {
+    it("Cinema contract refund 25%", async function() {
         const cinemaFunds = await cinema.provider.getBalance(cinema.address);
-        expect(cinemaFunds.toNumber()).to.be.eq(0);
+        expect(cinemaFunds.toNumber()).to.be.eq((movieTicketPrice*2) - (25/100) * (movieTicketPrice*2));
     });
 });

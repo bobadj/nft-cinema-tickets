@@ -45,7 +45,7 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
     }
 
     function _baseURI() internal pure override returns (string memory) {
-        return "ipfs://";
+        return "ipfs|http://<CID|FOLDER>/"; // in progress
     }
 
     /**

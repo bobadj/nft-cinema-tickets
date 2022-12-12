@@ -47,7 +47,8 @@ contract Cinema is Ownable {
     event HallCreated(uint256 hallID, string name, uint256 totalSeats);
     event MovieCreated(uint256 movieID, uint256 hallID, string title);
     event TicketBooked(address indexed buyer, uint256 movieID);
-    event TicketCanceled(address buyer, uint256 movieID);
+    event TicketCanceled(address indexed buyer, uint256 movieID);
+    event Withdrawal();
 
     /*
     * Save ERC721 token address
@@ -61,6 +62,25 @@ contract Cinema is Ownable {
 
     receive() external payable {
         emit Received(msg.sender, msg.value);
+    }
+
+    /*
+    * Withdraw funds to owner
+    *
+    * @notice be careful! contract should have enough funds to refund tickets
+    * @notice available for contract owner only
+    *
+    * @toDo - figure out how to keep contract with enough funds and avoid loop through all movies
+    *
+    */
+    function withdraw(uint256 _amount) onlyOwner public payable {
+        require(address(this).balance >= _amount, "No enough balance.");
+
+        address payable ownerAddress = payable(address(owner()));
+        (bool sent,) = ownerAddress.call{value : _amount}("");
+        require(sent, "Failed to send Ether.");
+
+        emit Withdrawal();
     }
 
     /**

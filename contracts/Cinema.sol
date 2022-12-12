@@ -113,26 +113,25 @@ contract Cinema is Ownable {
     * Books a ticket for a movie
     *
     * @param _movieID - ID of the movie
-    * @param _seats - number of seats for booked ticket
     *
     * @notice should mint a CinemaTicket token
     *
     * no returns
     */
-    function bookTicket(uint256 _movieID, uint256 _seats) requireValidMovie(_movieID) public payable {
+    function bookTicket(uint256 _movieID) requireValidMovie(_movieID) public payable {
         Movie memory movie = movies[_movieID];
         require(movie.startTime > block.timestamp, "Movie has already started.");
-        require(movie.availableTickets > _seats, "There is no enough seats available for this movie.");
-        require(msg.value >= movie.ticketPrice * _seats, "Amount applied does not match to cost.");
+        require(movie.availableTickets > 0, "There is no enough seats available for this movie.");
+        require(msg.value >= movie.ticketPrice, "Amount applied does not match to cost.");
 
-        movie.availableTickets = movie.availableTickets - _seats;
+        movie.availableTickets = movie.availableTickets - 1;
         movies[_movieID] = movie;
 
         address payable contractAddress = payable(address(this));
-        (bool sent,) = contractAddress.call{value : movie.ticketPrice * _seats}("");
+        (bool sent,) = contractAddress.call{value : movie.ticketPrice}("");
         require(sent, "Failed to send Ether.");
 
-        CinemaTicket(tokenAddress).mint(msg.sender, _movieID, _seats, movie.ticketPrice * _seats);
+        CinemaTicket(tokenAddress).mint(msg.sender, _movieID, movie.ticketPrice);
 
         emit TicketBooked(msg.sender, _movieID);
     }
@@ -149,12 +148,15 @@ contract Cinema is Ownable {
     function cancelTicket(uint256 _movieID) requireValidMovie(_movieID) public payable {
         Movie memory movie = movies[_movieID];
         require(movie.startTime > block.timestamp, "Movie has already started.");
-        uint256 ticketID = CinemaTicket(tokenAddress).getTokenIdFromMovieAndAddress(_movieID, msg.sender);
-        CinemaTicket.TicketMetadata memory ticketMeta = CinemaTicket(tokenAddress).getTokenMetadata(ticketID);
-        address buyer = ticketMeta.buyer;
+        CinemaTicket cinemaTicket = CinemaTicket(tokenAddress);
+        uint256 ticketID = cinemaTicket.movieTokenMap(_movieID);
+        require(ticketID > 0, "There is not ticket associated with movie.");
+        address buyer = cinemaTicket.ownerOf(ticketID);
 
+        require(buyer == msg.sender, "You are not the owner of the ticket.");
         require(buyer != address(0), "You dont have tickets for this movie.");
 
+        CinemaTicket.TicketMetadata memory ticketMeta = cinemaTicket.getTokenMetadata(ticketID);
         // 100% refund by default
         uint256 refundPercentage = 100;
         // less then 2h 50% refund
@@ -165,9 +167,9 @@ contract Cinema is Ownable {
             refundPercentage = 25;
         uint256 refundAmount = (ticketMeta.totalCost * (refundPercentage*100)) / 10000;
 
-        CinemaTicket(tokenAddress).burn(ticketMeta, ticketID);
+        CinemaTicket(tokenAddress).burn(ticketID);
 
-        movie.availableTickets = movie.availableTickets + ticketMeta.totalSeats;
+        movie.availableTickets = movie.availableTickets + 1;
         movies[_movieID] = movie;
 
         (bool sent,) = payable(buyer).call{value : refundAmount}("");

@@ -53,14 +53,14 @@ describe("Cinema", function () {
     });
 
     it("Should book tickets for a movie", async function() {
-        await expect(cinema.bookTicket(BigNumber.from(0), BigNumber.from(2), { value: movieTicketPrice*2 }))
+        await expect(cinema.bookTicket(BigNumber.from(0), { value: movieTicketPrice }))
             .to.emit(cinema, "TicketBooked")
             .withArgs(owner.address, BigNumber.from(0));
     });
 
     it("Cinema contract should have funds", async function() {
         const cinemaFunds = await cinema.provider.getBalance(cinema.address);
-        expect(cinemaFunds.toNumber()).to.be.eq(movieTicketPrice*2);
+        expect(cinemaFunds.toNumber()).to.be.eq(+movieTicketPrice);
     });
 
     it("Should cancel tickets", async function() {
@@ -71,6 +71,6 @@ describe("Cinema", function () {
 
     it("Cinema contract refund 25%", async function() {
         const cinemaFunds = await cinema.provider.getBalance(cinema.address);
-        expect(cinemaFunds.toNumber()).to.be.eq((movieTicketPrice*2) - (25/100) * (movieTicketPrice*2));
+        expect(cinemaFunds.toNumber()).to.be.eq(movieTicketPrice - (25/100) * movieTicketPrice);
     });
 });

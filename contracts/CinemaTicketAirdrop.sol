@@ -72,7 +72,7 @@ contract CinemaTicketAirdrop is Ownable {
         require(!addressesClaimed[_movieID][msg.sender], "Already claimed!");
         require(MerkleProof.verify(_merkleProof, airdrop.merkleRoot, node), "Invalid proof.");
 
-        CinemaTicket(cinemaTicketAddress).mint(msg.sender, _movieID, 1, 0);
+        CinemaTicket(cinemaTicketAddress).mint(msg.sender, _movieID, 0);
         addressesClaimed[_movieID][msg.sender] = true;
 
         emit Claimed(msg.sender, _movieID);

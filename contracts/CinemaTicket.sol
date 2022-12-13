@@ -18,9 +18,9 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
     }
 
     Counters.Counter private tokenIDCounter;
-
-    mapping(uint256 => uint256) public movieTokenMap;
     mapping(uint256 => TicketMetadata) public tokensMetadata;
+
+    event TicketIssued(address indexed owner, uint256 tokenID);
 
     /*
     * Starts token counting from 1
@@ -65,10 +65,11 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
 
         _safeMint(_buyer, currentTokenID);
         _setApprovalForAll(_buyer, address(this), true);
-        movieTokenMap[_movieID] = currentTokenID;
         tokensMetadata[currentTokenID] = TicketMetadata(_totalPrice, _movieID);
 
         tokenIDCounter.increment();
+
+        emit TicketIssued(_buyer, currentTokenID);
     }
 
     /**
@@ -80,12 +81,9 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
     function burn(uint256 _tokenId) onlyRole(MINTER_ROLE) public {
         require(_exists(_tokenId), "Token does not exists");
 
-        TicketMetadata memory ticketMeta = tokensMetadata[_tokenId];
-
         _burn(_tokenId);
 
         delete tokensMetadata[_tokenId];
-        delete movieTokenMap[ticketMeta.movieID];
     }
 
     /*

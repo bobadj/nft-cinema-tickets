@@ -70,7 +70,9 @@ contract Cinema is Ownable {
     * @notice be careful! contract should have enough funds to refund tickets
     * @notice available for contract owner only
     *
-    * @toDo - figure out how to keep contract with enough funds and avoid loop through all movies
+    * @toDo - figure out how to keep contract funded
+    * include uint256 private availableForWithdraw or
+    * loop through all movies and calculate active tickets sell - avoid
     *
     */
     function withdraw(uint256 _amount) onlyOwner public payable {
@@ -159,24 +161,22 @@ contract Cinema is Ownable {
     /**
     * Cancels a ticket for movie
     *
-    * @param _movieID - ID of the movie
+    * @param _ticketID - ticket ID
     *
-    * @notice should track msg.sender tickets, refund amount and then burned a CinemaTicket token
+    * @notice refund amount and burn CinemaTicket token
     *
     * no returns
     */
-    function cancelTicket(uint256 _movieID) requireValidMovie(_movieID) public payable {
-        Movie memory movie = movies[_movieID];
-        require(movie.startTime > block.timestamp, "Movie has already started.");
+    function cancelTicket(uint256 _ticketID) public payable {
         CinemaTicket cinemaTicket = CinemaTicket(tokenAddress);
-        uint256 ticketID = cinemaTicket.movieTokenMap(_movieID);
-        require(ticketID > 0, "There is not ticket associated with movie.");
-        address buyer = cinemaTicket.ownerOf(ticketID);
+        CinemaTicket.TicketMetadata memory ticketMeta = cinemaTicket.getTokenMetadata(_ticketID);
+        Movie memory movie = movies[ticketMeta.movieID];
+        require(movie.startTime > block.timestamp, "Movie has already started.");
 
+        address buyer = cinemaTicket.ownerOf(_ticketID);
         require(buyer == msg.sender, "You are not the owner of the ticket.");
         require(buyer != address(0), "You dont have tickets for this movie.");
 
-        CinemaTicket.TicketMetadata memory ticketMeta = cinemaTicket.getTokenMetadata(ticketID);
         // 100% refund by default
         uint256 refundPercentage = 100;
         // less then 2h 50% refund
@@ -187,14 +187,14 @@ contract Cinema is Ownable {
             refundPercentage = 25;
         uint256 refundAmount = (ticketMeta.totalCost * (refundPercentage*100)) / 10000;
 
-        CinemaTicket(tokenAddress).burn(ticketID);
+        CinemaTicket(tokenAddress).burn(_ticketID);
 
         movie.availableTickets = movie.availableTickets + 1;
-        movies[_movieID] = movie;
+        movies[ticketMeta.movieID] = movie;
 
         (bool sent,) = payable(buyer).call{value : refundAmount}("");
         require(sent, "Failed to send Ether.");
 
-        emit TicketCanceled(msg.sender, _movieID);
+        emit TicketCanceled(msg.sender, ticketMeta.movieID);
     }
 }

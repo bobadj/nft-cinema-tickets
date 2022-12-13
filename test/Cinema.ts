@@ -64,7 +64,7 @@ describe("Cinema", function () {
     });
 
     it("Should cancel tickets", async function() {
-        await expect(cinema.cancelTicket(0))
+        await expect(cinema.cancelTicket(1))
             .to.emit(cinema, "TicketCanceled")
             .withArgs(owner.address, 0);
     });

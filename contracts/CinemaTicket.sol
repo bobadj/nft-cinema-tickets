@@ -3,22 +3,26 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import { Base64 } from "@openzeppelin/contracts/utils/Base64.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
-import "./libraries/Block.sol";
 
-contract CinemaTicket is ERC721URIStorage, AccessControl {
+/*
+* add private baseURI with setter???
+* could be handy for migration??
+*/
+contract CinemaTicket is ERC721, AccessControl {
     using Counters for Counters.Counter;
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
+    Counters.Counter private tokenIDCounter;
+    mapping(uint256 => TicketMetadata) public tokensMetadata;
 
     struct TicketMetadata {
         uint256 totalCost;
         uint256 movieID;
+        bool checkedIn;
     }
-
-    Counters.Counter private tokenIDCounter;
-    mapping(uint256 => TicketMetadata) public tokensMetadata;
 
     event TicketIssued(address indexed owner, uint256 tokenID);
 
@@ -65,11 +69,22 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
 
         _safeMint(_buyer, currentTokenID);
         _setApprovalForAll(_buyer, address(this), true);
-        tokensMetadata[currentTokenID] = TicketMetadata(_totalPrice, _movieID);
+        tokensMetadata[currentTokenID] = TicketMetadata(_totalPrice, _movieID, false);
 
         tokenIDCounter.increment();
 
         emit TicketIssued(_buyer, currentTokenID);
+    }
+
+    /*
+    * Mark token as check-in
+    */
+    function markAsCheckedIn(uint256 _tokenId) onlyRole(MINTER_ROLE) public {
+        require(_exists(_tokenId), "Token does not exists");
+
+        TicketMetadata memory ticketMeta = tokensMetadata[_tokenId];
+        ticketMeta.checkedIn = true;
+        tokensMetadata[_tokenId] = ticketMeta;
     }
 
     /**

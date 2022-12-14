@@ -56,11 +56,15 @@ describe("Cinema", function () {
         await expect(cinema.bookTicket(BigNumber.from(0), { value: movieTicketPrice }))
             .to.emit(cinema, "TicketBooked")
             .withArgs(owner.address, BigNumber.from(0));
+
+        await expect(cinema.bookTicket(BigNumber.from(0), { value: movieTicketPrice }))
+            .to.emit(cinema, "TicketBooked")
+            .withArgs(owner.address, BigNumber.from(0));
     });
 
     it("Cinema contract should have funds", async function() {
         const cinemaFunds = await cinema.provider.getBalance(cinema.address);
-        expect(cinemaFunds.toNumber()).to.be.eq(+movieTicketPrice);
+        expect(cinemaFunds.toNumber()).to.be.eq(+movieTicketPrice*2);
     });
 
     it("Should cancel tickets", async function() {
@@ -69,8 +73,26 @@ describe("Cinema", function () {
             .withArgs(owner.address, 0);
     });
 
-    it("Cinema contract refund 25%", async function() {
+    it("Should refund 25%", async function() {
         const cinemaFunds = await cinema.provider.getBalance(cinema.address);
-        expect(cinemaFunds.toNumber()).to.be.eq(movieTicketPrice - (25/100) * movieTicketPrice);
+        const expectedBalance = (movieTicketPrice - (25/100) * movieTicketPrice) + Number(movieTicketPrice);
+        expect(cinemaFunds.toNumber()).to.be.eq(expectedBalance);
+    });
+
+    it("Should check-in ticket", async function () {
+        await cinema.checkInTicket(2);
+
+        await expect(cinema.cancelTicket(2))
+            .to.revertedWith("Ticket is already used.");
+    });
+
+    it("Should withdraw", async function () {
+        const expectedToWithdrawal = (movieTicketPrice - (25/100) * movieTicketPrice) + Number(movieTicketPrice);
+
+        await expect(cinema.withdraw(movieTicketPrice*2))
+            .to.revertedWith("No enough balance.");
+
+        await expect(cinema.withdraw(expectedToWithdrawal))
+            .to.emit(cinema, "Withdrawal");
     });
 });

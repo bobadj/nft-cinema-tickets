@@ -10,7 +10,14 @@ contract Cinema is Ownable {
     using SafeMath for uint;
     using Counters for Counters.Counter;
 
+    uint256 private availableForWithdraw;
     address public immutable tokenAddress;
+
+    Counters.Counter private movieIDCounter;
+    Counters.Counter private hallIDCounter;
+
+    mapping(uint256 => Hall) public halls;
+    mapping(uint256 => Movie) public movies;
 
     struct Hall {
         string name;
@@ -24,12 +31,6 @@ contract Cinema is Ownable {
         uint256 ticketPrice;
         uint256 availableTickets;
     }
-
-    Counters.Counter private movieIDCounter;
-    Counters.Counter private hallIDCounter;
-
-    mapping(uint256 => Hall) public halls;
-    mapping(uint256 => Movie) public movies;
 
     modifier requireValidHall(uint256 _hallID) {
         require(_hallID < hallIDCounter.current(), "Hall does not exist.");
@@ -70,13 +71,14 @@ contract Cinema is Ownable {
     * @notice be careful! contract should have enough funds to refund tickets
     * @notice available for contract owner only
     *
-    * @toDo - figure out how to keep contract funded
-    * include uint256 private availableForWithdraw or
-    * loop through all movies and calculate active tickets sell - avoid
-    *
+    * no returns
     */
     function withdraw(uint256 _amount) onlyOwner public payable {
         require(address(this).balance >= _amount, "No enough balance.");
+        // override _amount in case bellow?
+        require(availableForWithdraw >= _amount, "Not allowed to withdraw that much.");
+
+        availableForWithdraw = availableForWithdraw.sub(_amount);
 
         address payable ownerAddress = payable(address(owner()));
         (bool sent,) = ownerAddress.call{value : _amount}("");
@@ -164,6 +166,7 @@ contract Cinema is Ownable {
     * @param _ticketID - ticket ID
     *
     * @notice refund amount and burn CinemaTicket token
+    * @notice update availableForWithdraw
     *
     * no returns
     */
@@ -171,6 +174,7 @@ contract Cinema is Ownable {
         CinemaTicket cinemaTicket = CinemaTicket(tokenAddress);
         CinemaTicket.TicketMetadata memory ticketMeta = cinemaTicket.getTokenMetadata(_ticketID);
         Movie memory movie = movies[ticketMeta.movieID];
+        require(!ticketMeta.checkedIn, "Ticket is already used.");
         require(movie.startTime > block.timestamp, "Movie has already started.");
 
         address buyer = cinemaTicket.ownerOf(_ticketID);
@@ -185,7 +189,8 @@ contract Cinema is Ownable {
         // less then 1h 25% refund
         if (movie.startTime - 3600 <= block.timestamp)
             refundPercentage = 25;
-        uint256 refundAmount = (ticketMeta.totalCost * (refundPercentage*100)) / 10000;
+        uint256 refundAmount = ticketMeta.totalCost.mul(refundPercentage.mul(100)).div(10000);
+        availableForWithdraw = availableForWithdraw.add(ticketMeta.totalCost.sub(refundAmount));
 
         CinemaTicket(tokenAddress).burn(_ticketID);
 
@@ -196,5 +201,25 @@ contract Cinema is Ownable {
         require(sent, "Failed to send Ether.");
 
         emit TicketCanceled(msg.sender, ticketMeta.movieID);
+    }
+
+    /*
+    * Check-in Ticket/mark as used
+    *
+    * @param _ticketID - ID of ticket
+    *
+    * @notice check-in is available 30min before projection
+    *
+    * no returns
+    */
+    function checkInTicket(uint256 _ticketID) public {
+        CinemaTicket cinemaTicket = CinemaTicket(tokenAddress);
+        CinemaTicket.TicketMetadata memory ticketMeta = cinemaTicket.getTokenMetadata(_ticketID);
+        Movie memory movie = movies[ticketMeta.movieID];
+        require(movie.startTime > block.timestamp - 1800, "Not available for check-in yet.");
+
+        availableForWithdraw = availableForWithdraw.add(ticketMeta.totalCost);
+        // burn token instead of check-in?
+        cinemaTicket.markAsCheckedIn(_ticketID);
     }
 }

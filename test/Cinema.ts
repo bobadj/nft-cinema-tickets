@@ -80,14 +80,12 @@ describe("Cinema", function () {
     });
 
     it("Should check-in ticket", async function () {
-        await cinema.checkInTicket(2);
-
-        await expect(cinema.cancelTicket(2))
-            .to.revertedWith("Ticket is already used.");
+        await expect(cinema.checkInTicket(2))
+            .to.be.revertedWith("Not available for check-in yet.");
     });
 
     it("Should withdraw", async function () {
-        const expectedToWithdrawal = (movieTicketPrice - (25/100) * movieTicketPrice) + Number(movieTicketPrice);
+        const expectedToWithdrawal = (movieTicketPrice - (25/100) * movieTicketPrice);
 
         await expect(cinema.withdraw(movieTicketPrice*2))
             .to.revertedWith("No enough balance.");

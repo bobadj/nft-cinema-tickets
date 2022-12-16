@@ -25,8 +25,8 @@ contract Cinema is Ownable {
     }
 
     struct Movie {
-        uint256 hallID;
         string title;
+        uint256 hallID;
         uint256 startTime;
         uint256 ticketPrice;
         uint256 availableTickets;
@@ -216,7 +216,7 @@ contract Cinema is Ownable {
         CinemaTicket cinemaTicket = CinemaTicket(tokenAddress);
         CinemaTicket.TicketMetadata memory ticketMeta = cinemaTicket.getTokenMetadata(_ticketID);
         Movie memory movie = movies[ticketMeta.movieID];
-        require(movie.startTime > block.timestamp - 1800, "Not available for check-in yet.");
+        require(movie.startTime - 1800 < block.timestamp, "Not available for check-in yet.");
 
         availableForWithdraw = availableForWithdraw.add(ticketMeta.totalCost);
         // burn token instead of check-in?

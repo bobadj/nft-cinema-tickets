@@ -127,7 +127,7 @@ contract Cinema is Ownable {
         Hall memory hall = halls[_hallID];
 
         uint256 currentID = movieIDCounter.current();
-        movies[currentID] = Movie(_hallID, _title, _startTime, _ticketPrice, hall.totalSeats);
+        movies[currentID] = Movie(_title, _hallID, _startTime, _ticketPrice, hall.totalSeats);
 
         movieIDCounter.increment();
         emit MovieCreated(currentID, _hallID, _title);
@@ -137,12 +137,13 @@ contract Cinema is Ownable {
     * Books a ticket for a movie
     *
     * @param _movieID - ID of the movie
+    * @param _tokenURI - token uri ( ipfs cid )
     *
     * @notice should mint a CinemaTicket token
     *
     * no returns
     */
-    function bookTicket(uint256 _movieID) requireValidMovie(_movieID) public payable {
+    function bookTicket(uint256 _movieID, string memory _tokenURI) requireValidMovie(_movieID) public payable {
         Movie memory movie = movies[_movieID];
         require(movie.startTime > block.timestamp, "Movie has already started.");
         require(movie.availableTickets > 0, "There is no enough seats available for this movie.");
@@ -155,7 +156,7 @@ contract Cinema is Ownable {
         (bool sent,) = contractAddress.call{value : movie.ticketPrice}("");
         require(sent, "Failed to send Ether.");
 
-        CinemaTicket(tokenAddress).mint(msg.sender, _movieID, movie.ticketPrice);
+        CinemaTicket(tokenAddress).mint(msg.sender, _movieID, movie.ticketPrice, _tokenURI);
 
         emit TicketBooked(msg.sender, _movieID);
     }

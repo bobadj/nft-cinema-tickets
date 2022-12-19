@@ -5,6 +5,7 @@ import { BigNumber, utils } from "ethers";
 describe("Cinema", function () {
     let cinemaTicket, cinema, owner, otherAccount;
     const movieTitle = "Awesome movie.",
+          ipfsCID = '',
           hallID = 0,
           movieStartTime = Number((new Date().getTime() / 1000) + 3600).toFixed(0),
           movieTicketPrice = (0.002 * 1e18).toFixed(0);
@@ -53,11 +54,11 @@ describe("Cinema", function () {
     });
 
     it("Should book tickets for a movie", async function() {
-        await expect(cinema.bookTicket(BigNumber.from(0), { value: movieTicketPrice }))
+        await expect(cinema.bookTicket(BigNumber.from(0), ipfsCID, { value: movieTicketPrice }))
             .to.emit(cinema, "TicketBooked")
             .withArgs(owner.address, BigNumber.from(0));
 
-        await expect(cinema.bookTicket(BigNumber.from(0), { value: movieTicketPrice }))
+        await expect(cinema.bookTicket(BigNumber.from(0), ipfsCID, { value: movieTicketPrice }))
             .to.emit(cinema, "TicketBooked")
             .withArgs(owner.address, BigNumber.from(0));
     });

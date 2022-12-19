@@ -8,6 +8,7 @@ import keccak256 from "keccak256";
 describe("Cinema Ticket Airdrop", function () {
     let cinemaTicketAirdrop, cinemaTicket, owner, otherAccount, availableSigners, root, merkleTree, nodes;
     const movieID = 1,
+          ipfsCID = '',
           dayInASeconds = 86400,
           airdropStartAt = Number((new Date().getTime() / 1000)).toFixed(0),
           airdropEndAt = Number((new Date().getTime() / 1000) + (dayInASeconds * 2)).toFixed(0);
@@ -59,7 +60,7 @@ describe("Cinema Ticket Airdrop", function () {
         const proof = merkleTree.getHexProof(nodes[3]);
 
         // Attempt to claim and verify success
-        await expect(cinemaTicketAirdrop.connect(availableSigners[3]).claim(movieID, proof))
+        await expect(cinemaTicketAirdrop.connect(availableSigners[3]).claim(movieID, proof, ipfsCID))
             .to.emit(cinemaTicketAirdrop, "Claimed")
             .withArgs(availableSigners[3].address, movieID);
     });
@@ -73,7 +74,7 @@ describe("Cinema Ticket Airdrop", function () {
         const proof = merkleTree.getHexProof(nodes[3]);
 
         // Attempt to claim and verify error
-        await expect(cinemaTicketAirdrop.connect(availableSigners[3]).claim(2, proof))
+        await expect(cinemaTicketAirdrop.connect(availableSigners[3]).claim(2, proof, ipfsCID))
             .to.be.revertedWith("Airdrop has not started yet.");
     });
 
@@ -81,18 +82,18 @@ describe("Cinema Ticket Airdrop", function () {
         const proof = merkleTree.getHexProof(nodes[3]);
 
         // Attempt to claim and verify error
-        await expect(cinemaTicketAirdrop.connect(availableSigners[3]).claim(movieID, proof))
+        await expect(cinemaTicketAirdrop.connect(availableSigners[3]).claim(movieID, proof, ipfsCID))
             .to.be.revertedWith("Already claimed!");
     });
 
     it("Should throw for invalid proof", async () => {
         // call with invalid proof
-        await expect(cinemaTicketAirdrop.connect(availableSigners[2]).claim(movieID, []))
+        await expect(cinemaTicketAirdrop.connect(availableSigners[2]).claim(movieID, [], ipfsCID))
             .to.be.revertedWith("Invalid proof.");
 
         const proof = merkleTree.getHexProof(availableSigners[10].address);
         // call with non-legit address
-        await expect(cinemaTicketAirdrop.connect(availableSigners[10]).claim(movieID, proof))
+        await expect(cinemaTicketAirdrop.connect(availableSigners[10]).claim(movieID, proof, ipfsCID))
             .to.be.revertedWith("Invalid proof.");
     });
 
@@ -100,7 +101,7 @@ describe("Cinema Ticket Airdrop", function () {
         const proof = merkleTree.getHexProof(nodes[3]);
 
         // Attempt to claim and verify error
-        await expect(cinemaTicketAirdrop.connect(availableSigners[3]).claim(5, proof))
+        await expect(cinemaTicketAirdrop.connect(availableSigners[3]).claim(5, proof, ipfsCID))
             .to.be.revertedWith("Airdrop for desired movie do not exist!");
     });
 });

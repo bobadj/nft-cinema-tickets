@@ -65,14 +65,14 @@ contract CinemaTicketAirdrop is Ownable {
     * Before minting verify merkle proof
     *
     */
-    function claim(uint256 _movieID, bytes32[] calldata _merkleProof) requireValidAirdrop(_movieID) public {
+    function claim(uint256 _movieID, bytes32[] calldata _merkleProof, string memory _tokenURI) requireValidAirdrop(_movieID) public {
         Airdrop memory airdrop = availableAirdrops[_movieID];
         bytes32 node = keccak256(abi.encodePacked(msg.sender));
 
         require(!addressesClaimed[_movieID][msg.sender], "Already claimed!");
         require(MerkleProof.verify(_merkleProof, airdrop.merkleRoot, node), "Invalid proof.");
 
-        CinemaTicket(cinemaTicketAddress).mint(msg.sender, _movieID, 0);
+        CinemaTicket(cinemaTicketAddress).mint(msg.sender, _movieID, 0, _tokenURI);
         addressesClaimed[_movieID][msg.sender] = true;
 
         emit Claimed(msg.sender, _movieID);

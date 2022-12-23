@@ -66,6 +66,45 @@ contract Cinema is Ownable {
     }
 
     /*
+    * Get last movieID
+    *
+    * @return uint256 - ID of the latest existing movie
+    */
+    function getLastMovieID() public view returns (uint256) {
+        return movieIDCounter.current() - 1;
+    }
+
+
+    /**
+     * Fetches a range of movies
+     *
+     * @param _start - ID representing the start of the range
+     * @param _numOfMovies - number of movies to fetch from start
+     *
+     * @notice should be used in conjunction with getLastMovieID()
+     *
+     * @return returns Movie[] with fetched movies
+     */
+    function fetchMoviesRanged(uint256 _start, uint256 _numOfMovies) public view returns (Movie[] memory) {
+        uint256 currentID = movieIDCounter.current();
+        require(_start < currentID, "Start is in front of latest ID");
+
+        uint256 end = _start + _numOfMovies;
+        uint j = 0;
+
+        end = currentID <= end ? currentID : end;
+
+        Movie[] memory rangedMovies = new Movie[](end - _start);
+
+        for (uint i = _start; i < end; i++) {
+            rangedMovies[j] = movies[i];
+            j++;
+        }
+
+        return rangedMovies;
+    }
+
+    /*
     * Withdraw funds to owner
     *
     * @notice be careful! contract should have enough funds to refund tickets
@@ -137,7 +176,7 @@ contract Cinema is Ownable {
     * Books a ticket for a movie
     *
     * @param _movieID - ID of the movie
-    * @param _tokenURI - token uri ( ipfs cid )
+    * @param _tokenURI - token URI ( ipfs cid )
     *
     * @notice should mint a CinemaTicket token
     *

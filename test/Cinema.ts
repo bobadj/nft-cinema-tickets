@@ -5,7 +5,7 @@ import { BigNumber, utils } from "ethers";
 describe("Cinema", function () {
     let cinemaTicket, cinema, owner, otherAccount;
     const movieTitle = "Awesome movie.",
-          ipfsCID = '',
+          ipfsCID = 'ipfs://SoMeRanDomCID',
           hallID = 0,
           movieStartTime = Number((new Date().getTime() / 1000) + 3600).toFixed(0),
           movieTicketPrice = (0.002 * 1e18).toFixed(0);
@@ -41,7 +41,7 @@ describe("Cinema", function () {
     });
 
     it("Should create a new movie", async function() {
-        await expect(cinema.addNewMovie(hallID, movieTitle, BigNumber.from(movieStartTime), BigNumber.from(movieTicketPrice)))
+        await expect(cinema.addNewMovie(hallID, movieTitle, BigNumber.from(movieStartTime), BigNumber.from(movieTicketPrice), ipfsCID))
             .to.emit(cinema, "MovieCreated")
             .withArgs(0, hallID, movieTitle);
 
@@ -54,11 +54,11 @@ describe("Cinema", function () {
     });
 
     it("Should book tickets for a movie", async function() {
-        await expect(cinema.bookTicket(BigNumber.from(0), ipfsCID, { value: movieTicketPrice }))
+        await expect(cinema.bookTicket(BigNumber.from(0), { value: movieTicketPrice }))
             .to.emit(cinema, "TicketBooked")
             .withArgs(owner.address, BigNumber.from(0));
 
-        await expect(cinema.bookTicket(BigNumber.from(0), ipfsCID, { value: movieTicketPrice }))
+        await expect(cinema.bookTicket(BigNumber.from(0), { value: movieTicketPrice }))
             .to.emit(cinema, "TicketBooked")
             .withArgs(owner.address, BigNumber.from(0));
     });
@@ -89,7 +89,7 @@ describe("Cinema", function () {
         const expectedToWithdrawal = (movieTicketPrice - (25/100) * movieTicketPrice);
 
         await expect(cinema.withdraw(movieTicketPrice*2))
-            .to.revertedWith("No enough balance.");
+            .to.revertedWith("Not allowed to withdraw that much.");
 
         await expect(cinema.withdraw(expectedToWithdrawal))
             .to.emit(cinema, "Withdrawal");

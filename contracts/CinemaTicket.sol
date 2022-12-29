@@ -12,6 +12,7 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
     Counters.Counter private tokenIDCounter;
+    mapping(uint256 => string) public movieToTokenCID;
     mapping(uint256 => TicketMetadata) public tokensMetadata;
 
     struct TicketMetadata {
@@ -21,6 +22,8 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
     }
 
     event TicketIssued(address indexed owner, uint256 tokenID);
+    event TicketCanceled(uint256 tokenID);
+    event TicketCheckedIn(uint256 tokenID);
 
     /*
     * Starts token counting from 1
@@ -44,25 +47,43 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
         return tokensMetadata[_tokenID];
     }
 
+    /*
+    * Assign token CID for movie
+    *
+    * @param _movieID - ID of movie
+    * @param _tokenCID - ipfs CID
+    *
+    * @notice could be used only once per movieID, if mapping already exists, it can not be override
+    * @notice available for MINTER_ROLE only
+    *
+    * no returns
+    */
+    function assignTokenCidToMovie(uint256 _movieID, string memory _tokenCID) onlyRole(MINTER_ROLE) public {
+        require(bytes(_tokenCID).length > 0, "Invalid token CID");
+        require(bytes(movieToTokenCID[_movieID]).length <= 0, "Token CID for movie is already assigned.");
+        movieToTokenCID[_movieID] = _tokenCID;
+    }
+
     /**
     * Mints new token for msg.sender
     *
     * @param _buyer - buyer address
     * @param _movieID - ID of movie ticket should be associated with
     * @param _totalPrice - price payed
-    * @param _tokenURI - token uri ( ipfs cid )
     *
     * @notice contract should be an operator for minted token in order to burn it
     * after token is used or canceled
     *
     */
-    function mint(address _buyer, uint256 _movieID, uint256 _totalPrice, string memory _tokenURI) onlyRole(MINTER_ROLE) public {
+    function mint(address _buyer, uint256 _movieID, uint256 _totalPrice) onlyRole(MINTER_ROLE) public {
         require(_buyer != address(0), "Invalid buyer");
+        string memory tokenURI = movieToTokenCID[_movieID];
+        require(bytes(tokenURI).length > 0, "There is no ipfs CID for this movie.");
         uint256 currentTokenID = tokenIDCounter.current();
 
         _safeMint(_buyer, currentTokenID);
         _setApprovalForAll(_buyer, address(this), true);
-        _setTokenURI(currentTokenID, _tokenURI);
+        _setTokenURI(currentTokenID, tokenURI);
         tokensMetadata[currentTokenID] = TicketMetadata(_totalPrice, _movieID, false);
 
         tokenIDCounter.increment();
@@ -75,10 +96,13 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
     */
     function markAsCheckedIn(uint256 _tokenId) onlyRole(MINTER_ROLE) public {
         require(_exists(_tokenId), "Token does not exists");
-
         TicketMetadata memory ticketMeta = tokensMetadata[_tokenId];
+        require(!ticketMeta.checkedIn, "Not able to check-in twice.");
+
         ticketMeta.checkedIn = true;
         tokensMetadata[_tokenId] = ticketMeta;
+
+        emit TicketCheckedIn(_tokenId);
     }
 
     /**
@@ -93,6 +117,8 @@ contract CinemaTicket is ERC721URIStorage, AccessControl {
         _burn(_tokenId);
 
         delete tokensMetadata[_tokenId];
+
+        emit TicketCanceled(_tokenId);
     }
 
     /*

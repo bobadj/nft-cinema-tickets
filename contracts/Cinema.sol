@@ -59,6 +59,7 @@ contract Cinema is Ownable {
     */
     constructor(address _tokenAddress) {
         tokenAddress = _tokenAddress;
+        availableForWithdraw = 0;
     }
 
     receive() external payable {
@@ -113,7 +114,6 @@ contract Cinema is Ownable {
     * no returns
     */
     function withdraw(uint256 _amount) onlyOwner public payable {
-        require(address(this).balance >= _amount, "No enough balance.");
         // override _amount in case bellow?
         require(availableForWithdraw >= _amount, "Not allowed to withdraw that much.");
 
@@ -153,20 +153,23 @@ contract Cinema is Ownable {
     * @param _title - title of an movie
     * @param _startTime - time on projection as timestamp
     * @param _ticketPrice - price per ticket
+    * @param _ticketCID - ipfs CID of ticket
     *
     * toDo - determinate if hall is busy at the moment of projection
     *
     * @notice available for contract owner only
     * no returns
     */
-    function addNewMovie(uint256 _hallID, string memory _title, uint256 _startTime, uint256 _ticketPrice) onlyOwner requireValidHall(_hallID) onlyOwner public {
+    function addNewMovie(uint256 _hallID, string memory _title, uint256 _startTime, uint256 _ticketPrice, string memory _ticketCID) onlyOwner requireValidHall(_hallID) onlyOwner public {
         require(bytes(_title).length > 0, "Movie must have a title.");
+        require(bytes(_ticketCID).length > 0, "Invalid ticket CID.");
         require(_startTime > block.timestamp, "Movie projection must be in a future.");
 
         Hall memory hall = halls[_hallID];
 
         uint256 currentID = movieIDCounter.current();
         movies[currentID] = Movie(_title, _hallID, _startTime, _ticketPrice, hall.totalSeats);
+        CinemaTicket(tokenAddress).assignTokenCidToMovie(currentID, _ticketCID);
 
         movieIDCounter.increment();
         emit MovieCreated(currentID, _hallID, _title);
@@ -176,13 +179,12 @@ contract Cinema is Ownable {
     * Books a ticket for a movie
     *
     * @param _movieID - ID of the movie
-    * @param _tokenURI - token URI ( ipfs cid )
     *
     * @notice should mint a CinemaTicket token
     *
     * no returns
     */
-    function bookTicket(uint256 _movieID, string memory _tokenURI) requireValidMovie(_movieID) public payable {
+    function bookTicket(uint256 _movieID) requireValidMovie(_movieID) public payable {
         Movie memory movie = movies[_movieID];
         require(movie.startTime > block.timestamp, "Movie has already started.");
         require(movie.availableTickets > 0, "There is no enough seats available for this movie.");
@@ -195,7 +197,7 @@ contract Cinema is Ownable {
         (bool sent,) = contractAddress.call{value : movie.ticketPrice}("");
         require(sent, "Failed to send Ether.");
 
-        CinemaTicket(tokenAddress).mint(msg.sender, _movieID, movie.ticketPrice, _tokenURI);
+        CinemaTicket(tokenAddress).mint(msg.sender, _movieID, movie.ticketPrice);
 
         emit TicketBooked(msg.sender, _movieID);
     }
